@@ -1,5 +1,7 @@
 #include "ExampleAIModule.h"
 #include <iostream>
+#include <sstream>
+#include <vector>
 
 using namespace BWAPI;
 using namespace Filter;
@@ -56,6 +58,47 @@ void ExampleAIModule::onEnd(bool isWinner) {
     }
 }
 
+bool Layer1(Unit unit) {
+    return true;
+}
+
+bool Layer2(Unit unit) {
+    return true;
+}
+
+std::vector<bool (*)(Unit unit)> layers = {Layer1, Layer2};
+
+void brooksArchitecture(Unit worker) {
+    // if our worker is idle
+    if(worker->isIdle()) {
+        // Order workers carrying a resource to return them to the
+        // center, otherwise find a mineral patch to harvest.
+        if(worker->isCarryingGas() || worker->isCarryingMinerals()) {
+            worker->returnCargo();
+        } else if(!worker->getPowerUp())  // The worker cannot harvest
+                                          // anything if it
+        {                                 // is carrying a powerup such as a flag
+            // Harvest from the nearest mineral patch or gas refinery
+            Unit mineral = worker->getClosestUnit(IsMineralField || IsRefinery);
+            if(mineral == nullptr) {
+                // TODO - no minerals or gas available.
+            } else {
+                std::ostringstream text;
+
+                text << "ID: " << worker->getID() << ", x:" << mineral->getPosition().x
+                     << ", y: " << mineral->getPosition().y;
+
+                Broodwar->sendText(text.str().c_str());
+                if(!worker->gather(mineral)) {
+                    // If the call fails, then print the last error message
+                    Broodwar << Broodwar->getLastError() << std::endl;
+                }
+            }
+
+        }  // closure: has no powerup
+    }      // closure: if idle
+}
+
 void ExampleAIModule::onFrame() {
     // Called once every game frame
 
@@ -96,26 +139,7 @@ void ExampleAIModule::onFrame() {
 
         // If the unit is a worker unit
         if(u->getType().isWorker()) {
-            // if our worker is idle
-            if(u->isIdle()) {
-                // Order workers carrying a resource to return them to the
-                // center, otherwise find a mineral patch to harvest.
-                if(u->isCarryingGas() || u->isCarryingMinerals()) {
-                    u->returnCargo();
-                } else if(!u->getPowerUp())  // The worker cannot harvest
-                                             // anything if it
-                {                            // is carrying a powerup such as a flag
-                    // Harvest from the nearest mineral patch or gas refinery
-                    Unit mineral = u->getClosestUnit(IsMineralField || IsRefinery);
-                    if(mineral == nullptr) {
-						// TODO - no minerals or gas available.
-                    } else if(!u->gather(mineral)) {
-                        // If the call fails, then print the last error message
-                        Broodwar << Broodwar->getLastError() << std::endl;
-                    }
-
-                }  // closure: has no powerup
-            }      // closure: if idle
+            brooksArchitecture(u);
 
         } else if(u->getType().isResourceDepot())  // A resource depot is a Command
                                                    // Center, Nexus, or Hatchery
@@ -127,6 +151,7 @@ void ExampleAIModule::onFrame() {
                 // visibly see what went wrong! However, drawing the error once
                 // will only appear for a single frame so create an event that
                 // keeps it on the screen for some frames
+
                 Position pos = u->getPosition();
                 Error lastErr = Broodwar->getLastError();
                 Broodwar->registerEvent(
