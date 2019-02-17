@@ -1,0 +1,13 @@
+BasedOnStyle: Chromium
+AccessModifierOffset: -2
+AlignAfterOpenBracket: Align
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+# ColumnLimit: 80
+IndentWidth: 4
+NamespaceIndentation: All
+SpaceBeforeParens: Never
+Standard: Cpp11
