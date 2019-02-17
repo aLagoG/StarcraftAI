@@ -35,8 +35,7 @@ void ExampleAIModule::onStart() {
         for(auto p : players) {
             // Only print the player if they are not an observer
             if(!p->isObserver())
-                Broodwar << p->getName() << ", playing as " << p->getRace()
-                         << std::endl;
+                Broodwar << p->getName() << ", playing as " << p->getRace() << std::endl;
         }
 
     } else  // if this is not a replay
@@ -45,8 +44,8 @@ void ExampleAIModule::onStart() {
         // first enemy. If you wish to deal with multiple enemies then you must
         // use enemies().
         if(Broodwar->enemy())  // First make sure there is an enemy
-            Broodwar << "The matchup is " << Broodwar->self()->getRace()
-                     << " vs " << Broodwar->enemy()->getRace() << std::endl;
+            Broodwar << "The matchup is " << Broodwar->self()->getRace() << " vs " << Broodwar->enemy()->getRace()
+                     << std::endl;
     }
 }
 
@@ -62,8 +61,7 @@ void ExampleAIModule::onFrame() {
 
     // Display the game frame rate as text in the upper left area of the screen
     Broodwar->drawTextScreen(200, 0, "FPS: %d", Broodwar->getFPS());
-    Broodwar->drawTextScreen(200, 20, "Average FPS: %f",
-                             Broodwar->getAverageFPS());
+    Broodwar->drawTextScreen(200, 20, "Average FPS: %f", Broodwar->getAverageFPS());
 
     // Return if the game is a replay or is paused
     if(Broodwar->isReplay() || Broodwar->isPaused() || !Broodwar->self())
@@ -106,10 +104,12 @@ void ExampleAIModule::onFrame() {
                     u->returnCargo();
                 } else if(!u->getPowerUp())  // The worker cannot harvest
                                              // anything if it
-                {  // is carrying a powerup such as a flag
+                {                            // is carrying a powerup such as a flag
                     // Harvest from the nearest mineral patch or gas refinery
-                    if(!u->gather(
-                           u->getClosestUnit(IsMineralField || IsRefinery))) {
+                    Unit mineral = u->getClosestUnit(IsMineralField || IsRefinery);
+                    if(mineral == nullptr) {
+						// TODO - no minerals or gas available.
+                    } else if(!u->gather(mineral)) {
                         // If the call fails, then print the last error message
                         Broodwar << Broodwar->getLastError() << std::endl;
                     }
@@ -117,9 +117,8 @@ void ExampleAIModule::onFrame() {
                 }  // closure: has no powerup
             }      // closure: if idle
 
-        } else if(u->getType()
-                      .isResourceDepot())  // A resource depot is a Command
-                                           // Center, Nexus, or Hatchery
+        } else if(u->getType().isResourceDepot())  // A resource depot is a Command
+                                                   // Center, Nexus, or Hatchery
         {
             // Order the depot to construct more workers! But only when it is
             // idle.
@@ -132,59 +131,47 @@ void ExampleAIModule::onFrame() {
                 Error lastErr = Broodwar->getLastError();
                 Broodwar->registerEvent(
                     [pos, lastErr](Game*) {
-                        Broodwar->drawTextMap(pos, "%c%s", Text::White,
-                                              lastErr.c_str());
+                        Broodwar->drawTextMap(pos, "%c%s", Text::White, lastErr.c_str());
                     },                              // action
                     nullptr,                        // condition
                     Broodwar->getLatencyFrames());  // frames to run
 
                 // Retrieve the supply provider type in the case that we have
                 // run out of supplies
-                UnitType supplyProviderType =
-                    u->getType().getRace().getSupplyProvider();
+                UnitType supplyProviderType = u->getType().getRace().getSupplyProvider();
                 static int lastChecked = 0;
 
                 // If we are supply blocked and haven't tried constructing more
                 // recently
-                if(lastErr == Errors::Insufficient_Supply &&
-                   lastChecked + 400 < Broodwar->getFrameCount() &&
-                   Broodwar->self()->incompleteUnitCount(supplyProviderType) ==
-                       0) {
+                if(lastErr == Errors::Insufficient_Supply && lastChecked + 400 < Broodwar->getFrameCount() &&
+                   Broodwar->self()->incompleteUnitCount(supplyProviderType) == 0) {
                     lastChecked = Broodwar->getFrameCount();
 
                     // Retrieve a unit that is capable of constructing the
                     // supply needed
-                    Unit supplyBuilder = u->getClosestUnit(
-                        GetType == supplyProviderType.whatBuilds().first &&
-                        (IsIdle || IsGatheringMinerals) && IsOwned);
+                    Unit supplyBuilder = u->getClosestUnit(GetType == supplyProviderType.whatBuilds().first &&
+                                                           (IsIdle || IsGatheringMinerals) && IsOwned);
                     // If a unit was found
                     if(supplyBuilder) {
                         if(supplyProviderType.isBuilding()) {
                             TilePosition targetBuildLocation =
-                                Broodwar->getBuildLocation(
-                                    supplyProviderType,
-                                    supplyBuilder->getTilePosition());
+                                Broodwar->getBuildLocation(supplyProviderType, supplyBuilder->getTilePosition());
                             if(targetBuildLocation) {
                                 // Register an event that draws the target build
                                 // location
                                 Broodwar->registerEvent(
-                                    [targetBuildLocation,
-                                     supplyProviderType](Game*) {
+                                    [targetBuildLocation, supplyProviderType](Game*) {
                                         Broodwar->drawBoxMap(
                                             Position(targetBuildLocation),
-                                            Position(
-                                                targetBuildLocation +
-                                                supplyProviderType.tileSize()),
+                                            Position(targetBuildLocation + supplyProviderType.tileSize()),
                                             Colors::Blue);
                                     },
-                                    nullptr,  // condition
-                                    supplyProviderType.buildTime() +
-                                        100);  // frames to run
+                                    nullptr,                                // condition
+                                    supplyProviderType.buildTime() + 100);  // frames to run
 
                                 // Order the builder to construct the supply
                                 // structure
-                                supplyBuilder->build(supplyProviderType,
-                                                     targetBuildLocation);
+                                supplyBuilder->build(supplyProviderType, targetBuildLocation);
                             }
                         } else {
                             // Train the supply provider (Overlord) if the
@@ -249,8 +236,7 @@ void ExampleAIModule::onUnitCreate(BWAPI::Unit unit) {
             int seconds = Broodwar->getFrameCount() / 24;
             int minutes = seconds / 60;
             seconds %= 60;
-            Broodwar->sendText("%.2d:%.2d: %s creates a %s", minutes, seconds,
-                               unit->getPlayer()->getName().c_str(),
+            Broodwar->sendText("%.2d:%.2d: %s creates a %s", minutes, seconds, unit->getPlayer()->getName().c_str(),
                                unit->getType().c_str());
         }
     }
@@ -266,8 +252,7 @@ void ExampleAIModule::onUnitMorph(BWAPI::Unit unit) {
             int seconds = Broodwar->getFrameCount() / 24;
             int minutes = seconds / 60;
             seconds %= 60;
-            Broodwar->sendText("%.2d:%.2d: %s morphs a %s", minutes, seconds,
-                               unit->getPlayer()->getName().c_str(),
+            Broodwar->sendText("%.2d:%.2d: %s morphs a %s", minutes, seconds, unit->getPlayer()->getName().c_str(),
                                unit->getType().c_str());
         }
     }

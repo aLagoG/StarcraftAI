@@ -6,7 +6,7 @@ AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
-# ColumnLimit: 80
+ColumnLimit: 120
 IndentWidth: 4
 NamespaceIndentation: All
 SpaceBeforeParens: Never
