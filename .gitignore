@@ -261,6 +261,7 @@ __pycache__/
 *.pyc
 
 # StarCraft Related Stuff
+Chaoslauncher/__log.txt
 SC_Game/*
 !SC_Game/maps/
 SC_Game/maps/BroodWar/
