@@ -1,0 +1,4 @@
+[2019-02-14 14:47:31] Unable to find C:\Ian\8thSemester\Inteligentes\Starcraft\bwapi-data\BWAPI.dll.
+ID 00000002: 
+The system cannot find the file specified.
+
