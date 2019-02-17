@@ -259,3 +259,9 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
+
+# StarCraft Related Stuff
+SC_Game/*
+!SC_Game/maps/
+SC_Game/maps/BroodWar/
+SC_Game/maps/replays/
