@@ -6,6 +6,9 @@
 using namespace BWAPI;
 using namespace Filter;
 
+#define PROB(x) (rand() < (RAND_MAX * x))
+#define RAND(max) floor(rand() / float(RAND_MAX) * max)
+
 void ExampleAIModule::onStart() {
     // Hello World!
     Broodwar->sendText("Hello world!");
@@ -28,15 +31,15 @@ void ExampleAIModule::onStart() {
     Broodwar->setCommandOptimizationLevel(2);
 
     // Check if this is a replay
-    if(Broodwar->isReplay()) {
+    if (Broodwar->isReplay()) {
         // Announce the players in the replay
         Broodwar << "The following players are in this replay:" << std::endl;
 
         // Iterate all the players in the game using a std:: iterator
         Playerset players = Broodwar->getPlayers();
-        for(auto p : players) {
+        for (auto p : players) {
             // Only print the player if they are not an observer
-            if(!p->isObserver())
+            if (!p->isObserver())
                 Broodwar << p->getName() << ", playing as " << p->getRace() << std::endl;
         }
 
@@ -45,7 +48,7 @@ void ExampleAIModule::onStart() {
         // Retrieve you and your enemy's races. enemy() will just return the
         // first enemy. If you wish to deal with multiple enemies then you must
         // use enemies().
-        if(Broodwar->enemy())  // First make sure there is an enemy
+        if (Broodwar->enemy())  // First make sure there is an enemy
             Broodwar << "The matchup is " << Broodwar->self()->getRace() << " vs " << Broodwar->enemy()->getRace()
                      << std::endl;
     }
@@ -53,50 +56,100 @@ void ExampleAIModule::onStart() {
 
 void ExampleAIModule::onEnd(bool isWinner) {
     // Called when the game ends
-    if(isWinner) {
+    if (isWinner) {
         // Log your win here!
     }
 }
 
-bool Layer1(Unit unit) {
-    return true;
+bool AttackLayer(Unit unit) {
+    if (unit->isAttacking()) {
+        return true;
+    }
+    Unit enemy = unit->getClosestUnit(IsEnemy);
+    if (enemy && unit->canAttack(enemy)) {
+        bool res = unit->attack(enemy);
+        if (res) {
+            Broodwar->sendText("Atack");
+        }
+        return res;
+    }
+    return false;
 }
 
-bool Layer2(Unit unit) {
-    return true;
+bool ConstructLayer(Unit unit) {
+    if (unit->isIdle() && PROB(0.05f)) {
+        UnitType supplyProviderType = unit->getType().getRace().getSupplyProvider();
+        TilePosition targetBuildLocation = Broodwar->getBuildLocation(supplyProviderType, unit->getTilePosition());
+        if (targetBuildLocation) {
+            bool res = unit->build(supplyProviderType, targetBuildLocation);
+            if (res) {
+                Broodwar->sendText("Construct");
+            }
+            return res;
+        }
+    }
+    return false;
 }
 
-std::vector<bool (*)(Unit unit)> layers = {Layer1, Layer2};
+bool DropLayer(Unit unit) {
+    if (unit->isIdle() && (unit->isCarryingGas() || unit->isCarryingMinerals())) {
+        bool res = unit->returnCargo();
+        if (res) {
+            Broodwar->sendText("Drop");
+        }
+        return res;
+    }
+    return false;
+}
+
+bool GatherResourceLayer(Unit unit) {
+    if (unit->isGatheringMinerals() || unit->isGatheringGas()) {
+        return true;
+    }
+    Unit resource = unit->getClosestUnit(IsMineralField || IsRefinery);
+    if (resource) {
+        bool res = unit->gather(resource);
+        if (res) {
+            Broodwar->sendText("Gather");
+        }
+        return res;
+    }
+    return false;
+}
+
+bool ConstructRefineryIfAbleToLayer(Unit worker) {
+    // no jala
+    Unit closest = worker->getClosestUnit(IsResourceContainer && !IsMineralField);
+    if (!closest) {
+        return false;
+    }
+    bool res = worker->build(worker->getType().getRace().getRefinery(), closest->getTilePosition());
+    if (res) {
+        Broodwar->sendText("Refinery");
+    }
+    return res;
+}
+
+bool ExploreLayer(Unit worker) {
+    if (worker->isIdle()) {
+        bool res = worker->move(Position(RAND(Broodwar->mapWidth()), RAND(Broodwar->mapHeight())).makeValid());
+        if (res) {
+            Broodwar->sendText("Refinery");
+        }
+        return res;
+    }
+    return false;
+}
+
+std::vector<bool (*)(Unit unit)> layers = {
+    AttackLayer, ConstructLayer, DropLayer, ConstructRefineryIfAbleToLayer, GatherResourceLayer, ExploreLayer};
 
 void brooksArchitecture(Unit worker) {
-    // if our worker is idle
-    if(worker->isIdle()) {
-        // Order workers carrying a resource to return them to the
-        // center, otherwise find a mineral patch to harvest.
-        if(worker->isCarryingGas() || worker->isCarryingMinerals()) {
-            worker->returnCargo();
-        } else if(!worker->getPowerUp())  // The worker cannot harvest
-                                          // anything if it
-        {                                 // is carrying a powerup such as a flag
-            // Harvest from the nearest mineral patch or gas refinery
-            Unit mineral = worker->getClosestUnit(IsMineralField || IsRefinery);
-            if(mineral == nullptr) {
-                // TODO - no minerals or gas available.
-            } else {
-                std::ostringstream text;
-
-                text << "ID: " << worker->getID() << ", x:" << mineral->getPosition().x
-                     << ", y: " << mineral->getPosition().y;
-
-                Broodwar->sendText(text.str().c_str());
-                if(!worker->gather(mineral)) {
-                    // If the call fails, then print the last error message
-                    Broodwar << Broodwar->getLastError() << std::endl;
-                }
-            }
-
-        }  // closure: has no powerup
-    }      // closure: if idle
+    for (auto layer : layers) {
+        if (layer(worker)) {
+            return;
+        }
+    }
 }
 
 void ExampleAIModule::onFrame() {
@@ -107,46 +160,45 @@ void ExampleAIModule::onFrame() {
     Broodwar->drawTextScreen(200, 20, "Average FPS: %f", Broodwar->getAverageFPS());
 
     // Return if the game is a replay or is paused
-    if(Broodwar->isReplay() || Broodwar->isPaused() || !Broodwar->self())
+    if (Broodwar->isReplay() || Broodwar->isPaused() || !Broodwar->self())
         return;
 
     // Prevent spamming by only running our onFrame once every number of latency
     // frames. Latency frames are the number of frames before commands are
     // processed.
-    if(Broodwar->getFrameCount() % Broodwar->getLatencyFrames() != 0)
+    if (Broodwar->getFrameCount() % Broodwar->getLatencyFrames() != 0)
         return;
 
     // Iterate through all the units that we own
-    for(auto& u : Broodwar->self()->getUnits()) {
+    for (auto& u : Broodwar->self()->getUnits()) {
         // Ignore the unit if it no longer exists
         // Make sure to include this block when handling any Unit pointer!
-        if(!u->exists())
+        if (!u->exists())
             continue;
 
         // Ignore the unit if it has one of the following status ailments
-        if(u->isLockedDown() || u->isMaelstrommed() || u->isStasised())
+        if (u->isLockedDown() || u->isMaelstrommed() || u->isStasised())
             continue;
 
         // Ignore the unit if it is in one of the following states
-        if(u->isLoaded() || !u->isPowered() || u->isStuck())
+        if (u->isLoaded() || !u->isPowered() || u->isStuck())
             continue;
 
         // Ignore the unit if it is incomplete or busy constructing
-        if(!u->isCompleted() || u->isConstructing())
+        if (!u->isCompleted() || u->isConstructing())
             continue;
 
         // Finally make the unit do some stuff!
 
         // If the unit is a worker unit
-        if(u->getType().isWorker()) {
+        if (u->getType().isWorker()) {
             brooksArchitecture(u);
-
-        } else if(u->getType().isResourceDepot())  // A resource depot is a Command
-                                                   // Center, Nexus, or Hatchery
+        } else if (u->getType().isResourceDepot())  // A resource depot is a Command
+                                                    // Center, Nexus, or Hatchery
         {
             // Order the depot to construct more workers! But only when it is
             // idle.
-            if(u->isIdle() && !u->train(u->getType().getRace().getWorker())) {
+            if (u->isIdle() && !u->train(u->getType().getRace().getWorker())) {
                 // If that fails, draw the error at the location so that you can
                 // visibly see what went wrong! However, drawing the error once
                 // will only appear for a single frame so create an event that
@@ -168,8 +220,8 @@ void ExampleAIModule::onFrame() {
 
                 // If we are supply blocked and haven't tried constructing more
                 // recently
-                if(lastErr == Errors::Insufficient_Supply && lastChecked + 400 < Broodwar->getFrameCount() &&
-                   Broodwar->self()->incompleteUnitCount(supplyProviderType) == 0) {
+                if (lastErr == Errors::Insufficient_Supply && lastChecked + 400 < Broodwar->getFrameCount() &&
+                    Broodwar->self()->incompleteUnitCount(supplyProviderType) == 0) {
                     lastChecked = Broodwar->getFrameCount();
 
                     // Retrieve a unit that is capable of constructing the
@@ -177,11 +229,11 @@ void ExampleAIModule::onFrame() {
                     Unit supplyBuilder = u->getClosestUnit(GetType == supplyProviderType.whatBuilds().first &&
                                                            (IsIdle || IsGatheringMinerals) && IsOwned);
                     // If a unit was found
-                    if(supplyBuilder) {
-                        if(supplyProviderType.isBuilding()) {
+                    if (supplyBuilder) {
+                        if (supplyProviderType.isBuilding()) {
                             TilePosition targetBuildLocation =
                                 Broodwar->getBuildLocation(supplyProviderType, supplyBuilder->getTilePosition());
-                            if(targetBuildLocation) {
+                            if (targetBuildLocation) {
                                 // Register an event that draws the target build
                                 // location
                                 Broodwar->registerEvent(
@@ -233,7 +285,7 @@ void ExampleAIModule::onPlayerLeft(BWAPI::Player player) {
 
 void ExampleAIModule::onNukeDetect(BWAPI::Position target) {
     // Check if the target is a valid position
-    if(target) {
+    if (target) {
         // if so, print the location of the nuclear strike target
         Broodwar << "Nuclear Launch Detected at " << target << std::endl;
     } else {
@@ -254,10 +306,10 @@ void ExampleAIModule::onUnitShow(BWAPI::Unit unit) {}
 void ExampleAIModule::onUnitHide(BWAPI::Unit unit) {}
 
 void ExampleAIModule::onUnitCreate(BWAPI::Unit unit) {
-    if(Broodwar->isReplay()) {
+    if (Broodwar->isReplay()) {
         // if we are in a replay, then we will print out the build order of the
         // structures
-        if(unit->getType().isBuilding() && !unit->getPlayer()->isNeutral()) {
+        if (unit->getType().isBuilding() && !unit->getPlayer()->isNeutral()) {
             int seconds = Broodwar->getFrameCount() / 24;
             int minutes = seconds / 60;
             seconds %= 60;
@@ -270,10 +322,10 @@ void ExampleAIModule::onUnitCreate(BWAPI::Unit unit) {
 void ExampleAIModule::onUnitDestroy(BWAPI::Unit unit) {}
 
 void ExampleAIModule::onUnitMorph(BWAPI::Unit unit) {
-    if(Broodwar->isReplay()) {
+    if (Broodwar->isReplay()) {
         // if we are in a replay, then we will print out the build order of the
         // structures
-        if(unit->getType().isBuilding() && !unit->getPlayer()->isNeutral()) {
+        if (unit->getType().isBuilding() && !unit->getPlayer()->isNeutral()) {
             int seconds = Broodwar->getFrameCount() / 24;
             int minutes = seconds / 60;
             seconds %= 60;
