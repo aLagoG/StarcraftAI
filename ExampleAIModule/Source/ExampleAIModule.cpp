@@ -68,7 +68,7 @@ void ExampleAIModule::onEnd(bool isWinner) {
 }
 
 bool AttackLayer(Unit unit) {
-    if (unit->isAttacking()) {
+    if (unit->isAttacking() || unit->isAttackFrame() || unit->isStartingAttack()) {
         return true;
     }
     Unit enemy = unit->getClosestUnit(IsEnemy);
@@ -142,10 +142,10 @@ bool GatherResourceLayer(Unit unit) {
         first = GatherGas;
         second = GatherMineral;
     }
-	if(first(unit)){
+    if (first(unit)) {
         return true;
-	} 
-	return second(unit);
+    }
+    return second(unit);
 }
 
 bool ConstructRefineryIfAbleToLayer(Unit worker) {
@@ -161,8 +161,12 @@ bool ConstructRefineryIfAbleToLayer(Unit worker) {
 }
 
 bool ExploreLayer(Unit worker) {
-    if (worker->isIdle()) {
-        bool res = worker->move(Position(TilePosition(RAND(Broodwar->mapWidth()), RAND(Broodwar->mapHeight()))).makeValid());
+    if (worker->isMoving()) {
+        return true;
+    }
+    if (worker->isIdle() && worker->canMove()) {
+        bool res =
+            worker->move(Position(TilePosition(RAND(Broodwar->mapWidth()), RAND(Broodwar->mapHeight()))).makeValid());
         if (res) {
             Broodwar->sendText("Exploring");
         }
@@ -254,10 +258,10 @@ void ExampleAIModule::onFrame() {
                     Broodwar->self()->incompleteUnitCount(supplyProviderType) == 0) {
                     lastChecked = Broodwar->getFrameCount();
 
-					// Reached max supply
-					if(Broodwar->self()->supplyTotal() >= 400){
+                    // Reached max supply
+                    if (Broodwar->self()->supplyTotal() >= 400) {
                         continue;
-					}
+                    }
 
                     // Retrieve a unit that is capable of constructing the
                     // supply needed
