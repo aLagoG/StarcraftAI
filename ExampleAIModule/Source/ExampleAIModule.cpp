@@ -10,7 +10,7 @@ using namespace Filter;
 #define RAND(max) floor(rand() / float(RAND_MAX) * max)
 
 bool isVespeneGas(Unit unit) {
-    return unit->getType() == UnitTypes::Resource_Vespene_Geyser;
+    return unit->getType() == UnitTypes::Resource_Vespene_Geyser && unit->getResources() > 0;
 }
 
 UnitFilter isVespeneGeyser(isVespeneGas);
@@ -89,7 +89,7 @@ bool ConstructLayer(Unit unit) {
         if (targetBuildLocation) {
             bool res = unit->build(supplyProviderType, targetBuildLocation);
             if (res) {
-                Broodwar->sendText("Construct");
+                Broodwar->sendText("Build Depot");
             }
             return res;
         }
@@ -101,7 +101,7 @@ bool DropLayer(Unit unit) {
     if (unit->isIdle() && (unit->isCarryingGas() || unit->isCarryingMinerals())) {
         bool res = unit->returnCargo();
         if (res) {
-            Broodwar->sendText("Drop");
+            Broodwar->sendText("Drop Resource");
         }
         return res;
     }
@@ -155,16 +155,16 @@ bool ConstructRefineryIfAbleToLayer(Unit worker) {
     }
     bool res = worker->build(worker->getType().getRace().getRefinery(), closest->getTilePosition());
     if (res) {
-        Broodwar->sendText("Refinery");
+        Broodwar->sendText("Building Refinery");
     }
     return res;
 }
 
 bool ExploreLayer(Unit worker) {
     if (worker->isIdle()) {
-        bool res = worker->move(Position(RAND(Broodwar->mapWidth()), RAND(Broodwar->mapHeight())).makeValid());
+        bool res = worker->move(Position(TilePosition(RAND(Broodwar->mapWidth()), RAND(Broodwar->mapHeight()))).makeValid());
         if (res) {
-            Broodwar->sendText("Refinery");
+            Broodwar->sendText("Exploring");
         }
         return res;
     }
@@ -253,6 +253,11 @@ void ExampleAIModule::onFrame() {
                 if (lastErr == Errors::Insufficient_Supply && lastChecked + 400 < Broodwar->getFrameCount() &&
                     Broodwar->self()->incompleteUnitCount(supplyProviderType) == 0) {
                     lastChecked = Broodwar->getFrameCount();
+
+					// Reached max supply
+					if(Broodwar->self()->supplyTotal() >= 400){
+                        continue;
+					}
 
                     // Retrieve a unit that is capable of constructing the
                     // supply needed
