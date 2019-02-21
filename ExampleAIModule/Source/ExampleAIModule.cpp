@@ -9,6 +9,12 @@ using namespace Filter;
 #define PROB(x) (rand() < (RAND_MAX * x))
 #define RAND(max) floor(rand() / float(RAND_MAX) * max)
 
+bool isVespeneGas(Unit unit) {
+    return unit->getType() == UnitTypes::Resource_Vespene_Geyser;
+}
+
+UnitFilter isVespeneGeyser(isVespeneGas);
+
 void ExampleAIModule::onStart() {
     // Hello World!
     Broodwar->sendText("Hello world!");
@@ -102,24 +108,48 @@ bool DropLayer(Unit unit) {
     return false;
 }
 
-bool GatherResourceLayer(Unit unit) {
-    if (unit->isGatheringMinerals() || unit->isGatheringGas()) {
-        return true;
-    }
-    Unit resource = unit->getClosestUnit(IsMineralField || IsRefinery);
+bool GatherGas(Unit worker) {
+    Unit resource = worker->getClosestUnit(IsRefinery);
     if (resource) {
-        bool res = unit->gather(resource);
+        bool res = worker->gather(resource);
         if (res) {
-            Broodwar->sendText("Gather");
+            Broodwar->sendText("Gather Gas");
         }
         return res;
     }
     return false;
 }
 
+bool GatherMineral(Unit worker) {
+    Unit resource = worker->getClosestUnit(IsMineralField);
+    if (resource) {
+        bool res = worker->gather(resource);
+        if (res) {
+            Broodwar->sendText("Gather Mineral");
+        }
+        return res;
+    }
+    return false;
+}
+
+bool GatherResourceLayer(Unit unit) {
+    if (unit->isGatheringMinerals() || unit->isGatheringGas()) {
+        return true;
+    }
+    auto first = GatherMineral;
+    auto second = GatherGas;
+    if (PROB(0.20)) {
+        first = GatherGas;
+        second = GatherMineral;
+    }
+	if(first(unit)){
+        return true;
+	} 
+	return second(unit);
+}
+
 bool ConstructRefineryIfAbleToLayer(Unit worker) {
-    // no jala
-    Unit closest = worker->getClosestUnit(IsResourceContainer && !IsMineralField);
+    Unit closest = worker->getClosestUnit(isVespeneGeyser);
     if (!closest) {
         return false;
     }
