@@ -1,3 +1,73 @@
+# Pre-requisitos
+
++ Tener <code>git</code> instalado.
+
+# Para correr el proyecto
+
+1. clonar el repositorio de BWAPI code.
+
+    <code>git clone https://github.com/bwapi/bwapi.git</code>
+
+2. clonar el repositorio del proyecto
+
+    <code>git clone https://github.com/aLagoG/StarcraftAI.git</code>
+
+3. Abrir el proyecto de BWAPI con Visual Studio 2017.
+
+4. Cambiar el modo de configuracion a Release
+
+![Release-Mode](https://i.imgur.com/90JbW25.png)
+
+5. Cambiar el platform-toolset al de Visual Studio 2017 a los siguientes proyectos dentro de la solucion (click derecho al proyecto -> Propiedades).
+    + <code>BWAPI</code>
+    + <code>BWAPICore</code>
+    + <code>BWAPILIB</code>
+    + <code>Storm</code>
+    + <code>SVNRevGen</code>
+    + <code>Util</code>
+
+![Platform-Toolset](https://i.imgur.com/kQjtUre.png)
+
+6. Compilar solo el Proyecto de BWAPI (click derecho -> Build/Compilar).
+
+7. Copiar los archivos encontrados en:
+
+    <code>./bwapi/bwapi/Release/</code>
+
+    a la siguiente ruta:
+    
+    <code>./StarcraftAI/lib/</code>
+
+8. Compilar el proyecto de StarcratAI en modo Release  
+
+![Release-Mode](https://i.imgur.com/90JbW25.png)
+
+9. Correr ChaosLauncher de forma de Administrador localizado en
+
+    <code>./StartcraftAI/Chaoslauncher/Chaoslauncher.exe</code>
+
+10. Asignar el siguiente path para Starcraft en el Chaoslauncher.
+
+    <code>./StarcraftAi/SC_Game/StarCraft.exe</code>
+
+![Chaoslauncher-Starcraft-path](https://i.imgur.com/kvG7QYL.png)
+
+11. Correr el juego con los siguientes parametros.
+
+![launching-the-game](https://i.imgur.com/nmGctnb.png)
+
+12. Entrar a un nuevo juego con el ai cargado.
+    1. Single Player
+    2. Expansion
+    3. Cualquiera de las dos cuentas
+    4. Darle click en OK
+    5. Play Custom
+    6. Seleccionar el mapa
+        + [Up One Level]
+        + [custom]
+        + [mars_small_gasl.scx]
+    7. Darle click en OK
+
 # The Brood War API {#BWAPI}
 
 [![Build status](https://ci.appveyor.com/api/projects/status/6eikd5g49co6l5ty/branch/develop?svg=true)](https://ci.appveyor.com/project/heinermann/bwapi/branch/develop)
